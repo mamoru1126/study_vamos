@@ -1,0 +1,1168 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>VAMOS 論文解説</title>
+<meta name="description" content="階層型ナビゲーション VLA「VAMOS」（arXiv:2510.20818）の日本語解説。VLM プランナーと機体ごとのアフォーダンスモデルの役割分担、学習データ、実験結果、限界、OmniVLA との比較をまとめる。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  color-scheme: light;
+  --bg: #F2F3F0;
+  --surface: #FCFCFB;
+  --ink: #171A1F;
+  --ink-2: #4A515C;
+  --muted: #666D77;
+  --rule: #DADDD6;
+  --rule-strong: #BFC3BA;
+  --axis: #C3C2B7;
+  --code-bg: #E9EBE6;
+  --memo-bg: #ECEEE8;
+  --link: #1F5FAD;
+  --focus: #1F5FAD;
+  --vlm: #2A78D6;
+  --vlm-wash: rgba(42, 120, 214, 0.10);
+  --aff: #EB6834;
+  --aff-wash: rgba(235, 104, 52, 0.13);
+  --stairs: #1BAF7A;
+  --ramp: #EDA100;
+  --deemph: #8F8E86;
+  --scene-back: #DFE3DC;
+  --scene-top: #E9ECE6;
+  --scene-wall: #CDD2C9;
+  --scene-floor: #F5F6F3;
+  --scene-ramp: #DCE0D7;
+  --scene-line: #98A096;
+  --h20: #CDE2FB; --h20-ink: #171A1F;
+  --h40: #9EC5F4; --h40-ink: #171A1F;
+  --h60: #6DA7EC; --h60-ink: #171A1F;
+  --h80: #256ABF; --h80-ink: #FFFFFF;
+  --h100: #1C5CAB; --h100-ink: #FFFFFF;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #101214;
+    --surface: #181A1D;
+    --ink: #E7E9EB;
+    --ink-2: #B7BDC5;
+    --muted: #8A919A;
+    --rule: #2A2E33;
+    --rule-strong: #3D434A;
+    --axis: #45494F;
+    --code-bg: #212428;
+    --memo-bg: #1C1F23;
+    --link: #7DB3F0;
+    --focus: #7DB3F0;
+    --vlm: #3987E5;
+    --vlm-wash: rgba(57, 135, 229, 0.16);
+    --aff: #D95926;
+    --aff-wash: rgba(217, 89, 38, 0.20);
+    --stairs: #199E70;
+    --ramp: #C98500;
+    --deemph: #6B6B66;
+    --scene-back: #1E2125;
+    --scene-top: #24282C;
+    --scene-wall: #30353B;
+    --scene-floor: #1A1D20;
+    --scene-ramp: #2B3036;
+    --scene-line: #5F666E;
+    --h20: #0D366B; --h20-ink: #E7E9EB;
+    --h40: #184F95; --h40-ink: #E7E9EB;
+    --h60: #256ABF; --h60-ink: #FFFFFF;
+    --h80: #3987E5; --h80-ink: #0F1113;
+    --h100: #6DA7EC; --h100-ink: #0F1113;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #101214;
+  --surface: #181A1D;
+  --ink: #E7E9EB;
+  --ink-2: #B7BDC5;
+  --muted: #8A919A;
+  --rule: #2A2E33;
+  --rule-strong: #3D434A;
+  --axis: #45494F;
+  --code-bg: #212428;
+  --memo-bg: #1C1F23;
+  --link: #7DB3F0;
+  --focus: #7DB3F0;
+  --vlm: #3987E5;
+  --vlm-wash: rgba(57, 135, 229, 0.16);
+  --aff: #D95926;
+  --aff-wash: rgba(217, 89, 38, 0.20);
+  --stairs: #199E70;
+  --ramp: #C98500;
+  --deemph: #6B6B66;
+  --scene-back: #1E2125;
+  --scene-top: #24282C;
+  --scene-wall: #30353B;
+  --scene-floor: #1A1D20;
+  --scene-ramp: #2B3036;
+  --scene-line: #5F666E;
+  --h20: #0D366B; --h20-ink: #E7E9EB;
+  --h40: #184F95; --h40-ink: #E7E9EB;
+  --h60: #256ABF; --h60-ink: #FFFFFF;
+  --h80: #3987E5; --h80-ink: #0F1113;
+  --h100: #6DA7EC; --h100-ink: #0F1113;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; scroll-padding-top: 20px; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: "IBM Plex Sans JP", "Noto Sans JP", "Noto Sans CJK JP", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", Meiryo, system-ui, sans-serif;
+  font-size: 16px;
+  line-height: 1.85;
+  letter-spacing: 0.01em;
+  line-break: strict;
+  overflow-wrap: break-word;
+}
+@media (min-width: 760px) { body { font-size: 16.5px; } }
+a { color: var(--link); text-decoration-thickness: 1px; text-underline-offset: 0.22em; }
+a:hover { text-decoration-thickness: 2px; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 2px; }
+.skip { position: absolute; left: -9999px; top: 0; }
+.skip:focus { left: 16px; top: 12px; z-index: 10; background: var(--surface); padding: 8px 12px; }
+
+.page { max-width: 1160px; margin: 0 auto; padding: 0 16px 96px; }
+@media (min-width: 1080px) {
+  .page { display: grid; grid-template-columns: 196px minmax(0, 1fr); column-gap: 64px; padding: 0 32px 128px; }
+}
+main { min-width: 0; max-width: 700px; }
+
+/* 目次 */
+.toc-rail { display: none; }
+@media (min-width: 1080px) {
+  .toc-rail { display: block; }
+  .toc-rail nav { position: sticky; top: 0; padding-top: 80px; max-height: 100vh; overflow-y: auto; }
+}
+.toc-title { font-size: 13px; font-weight: 700; margin: 0 0 8px 14px; }
+.toc ol { list-style: none; margin: 0; padding: 0; }
+.toc li { margin: 0; }
+.toc a {
+  display: block; padding: 5px 0 5px 12px; border-left: 2px solid transparent;
+  color: var(--ink-2); text-decoration: none; font-size: 13.5px; line-height: 1.5;
+}
+.toc a:hover { color: var(--ink); }
+.toc a[aria-current="true"] { color: var(--ink); border-left-color: var(--ink); font-weight: 600; }
+.toc-mobile { margin: 28px 0 0; border: 1px solid var(--rule); border-radius: 8px; background: var(--surface); }
+.toc-mobile summary { padding: 11px 16px; cursor: pointer; font-weight: 600; font-size: 15px; }
+.toc-mobile .toc { padding: 0 16px 12px; }
+@media (min-width: 1080px) { .toc-mobile { display: none; } }
+
+/* 見出しまわり */
+.masthead { padding: 44px 0 0; }
+@media (min-width: 1080px) { .masthead { padding-top: 80px; } }
+h1 { font-size: clamp(46px, 11vw, 68px); line-height: 1; letter-spacing: -0.015em; font-weight: 700; margin: 0; }
+.subtitle { font-size: clamp(18px, 4.4vw, 21px); line-height: 1.6; font-weight: 500; margin: 18px 0 0; max-width: 27em; font-feature-settings: "palt" 1; }
+.title-en { font-size: 13.5px; line-height: 1.55; color: var(--muted); margin: 10px 0 0; letter-spacing: 0; }
+
+.meta { display: grid; grid-template-columns: 4.5em minmax(0, 1fr); gap: 6px 16px; font-size: 14px; line-height: 1.7; margin: 28px 0 0; padding: 16px 0; border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
+.meta dt { color: var(--muted); }
+.meta dd { margin: 0; }
+.links { display: flex; flex-wrap: wrap; gap: 2px 16px; }
+
+section { margin-top: 72px; }
+h2 { font-size: 24px; line-height: 1.45; margin: 0 0 20px; font-weight: 700; font-feature-settings: "palt" 1; }
+h3 { font-size: 18.5px; line-height: 1.5; margin: 44px 0 12px; font-weight: 700; font-feature-settings: "palt" 1; }
+h4 { font-size: 16px; line-height: 1.5; margin: 0 0 4px; font-weight: 700; }
+.layer { display: inline-block; width: 12px; height: 12px; border-radius: 2px; margin-right: 10px; vertical-align: 0.02em; }
+.layer-vlm { background: var(--vlm); }
+.layer-aff { background: var(--aff); }
+p { margin: 0 0 1em; }
+ul, ol { padding-left: 1.4em; margin: 0 0 1em; }
+li { margin: 0.4em 0; }
+li::marker { color: var(--muted); }
+strong { font-weight: 700; }
+.lead { font-size: 17px; }
+
+code, pre { font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; letter-spacing: 0; }
+code { font-size: 0.88em; background: var(--code-bg); padding: 0.1em 0.35em; border-radius: 3px; }
+pre { background: var(--code-bg); padding: 14px 16px; border-radius: 6px; overflow-x: auto; font-size: 13.5px; line-height: 1.65; margin: 16px 0 6px; }
+pre code { background: none; padding: 0; font-size: inherit; }
+.pre-note { font-size: 13.5px; color: var(--muted); margin: 0 0 1.2em; }
+
+/* 数式 */
+.eq {
+  font-family: "STIX Two Text", "Cambria Math", Cambria, "Times New Roman", "Noto Serif", serif;
+  font-size: 19px; line-height: 1.7; letter-spacing: 0;
+  margin: 18px 0; padding: 6px 0 6px 16px; border-left: 2px solid var(--rule-strong);
+  overflow-x: auto; white-space: nowrap;
+}
+.eq i { font-style: italic; }
+.eq sub, .eq sup { font-size: 0.68em; line-height: 0; }
+.eq .op { font-style: normal; margin: 0 0.15em; }
+.frac { display: inline-flex; flex-direction: column; vertical-align: middle; text-align: center; margin: 0 0.25em; line-height: 1.5; }
+.frac > span:first-child { border-bottom: 1px solid currentColor; padding: 0 0.25em 0.1em; }
+.frac > span:last-child { padding: 0.1em 0.25em 0; }
+.lim { display: inline-flex; flex-direction: column; vertical-align: middle; font-size: 0.62em; line-height: 1.15; margin: 0 0.2em 0 0.05em; text-align: left; }
+.eq .lim sub, .eq .lim sup { font-size: 1em; line-height: 1.15; vertical-align: baseline; }
+
+/* 図 */
+figure { margin: 28px 0; }
+.fig { background: var(--surface); border: 1px solid var(--rule); border-radius: 8px; padding: 16px; }
+.fig > svg, .fig .svg-box > svg { display: block; width: 100%; height: auto; margin: 0 auto; }
+.fig > svg.scene { max-width: 600px; }
+.fig > svg.arch { max-width: 460px; }
+figcaption { font-size: 13.5px; line-height: 1.75; color: var(--ink-2); margin-top: 14px; }
+.fig-num { font-weight: 700; color: var(--ink); margin-right: 0.6em; }
+
+/* 解説メモ（論文の主張と区別するための囲み） */
+.memo { background: var(--memo-bg); border-left: 3px solid var(--ink-2); padding: 14px 18px 4px; margin: 28px 0; border-radius: 0 6px 6px 0; font-size: 15px; }
+.memo-title { font-size: 13.5px; font-weight: 700; color: var(--ink-2); margin: 0 0 6px; }
+.memo ul { margin-bottom: 10px; }
+
+/* 表 */
+.table-wrap { overflow-x: auto; margin: 20px 0; }
+table { border-collapse: collapse; width: 100%; font-size: 14.5px; line-height: 1.65; }
+th, td { padding: 9px 10px; border-bottom: 1px solid var(--rule); text-align: left; vertical-align: top; }
+thead th { font-weight: 600; color: var(--ink-2); border-bottom: 1px solid var(--rule-strong); font-size: 13.5px; }
+tbody th { font-weight: 600; }
+tbody th small { font-weight: 400; color: var(--muted); font-size: 12.5px; }
+.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.nowrap { white-space: nowrap; }
+.table-note { font-size: 13.5px; color: var(--muted); margin: -8px 0 1.2em; }
+@media (min-width: 641px) {
+  table.stack tbody th { min-width: 8.5em; }
+  table.cmp tbody th { white-space: nowrap; min-width: 0; }
+}
+@media (max-width: 640px) {
+  table.stack thead { display: none; }
+  table.stack tr { display: block; padding: 12px 0; border-bottom: 1px solid var(--rule); }
+  table.stack th, table.stack td { display: block; border: 0; padding: 2px 0; }
+  table.stack tbody th { font-size: 15.5px; margin-bottom: 4px; }
+  table.stack td::before { content: attr(data-label); display: block; font-size: 12.5px; color: var(--muted); margin-top: 6px; }
+}
+
+/* 図1：経路候補 */
+.hero { margin: 32px 0 0; }
+.scene .sc-back { fill: var(--scene-back); }
+.scene .sc-top { fill: var(--scene-top); }
+.scene .sc-wall { fill: var(--scene-wall); }
+.scene .sc-floor { fill: var(--scene-floor); }
+.scene .sc-ramp { fill: var(--scene-ramp); }
+.scene .sc-line { stroke: var(--scene-line); stroke-width: 1; fill: none; }
+.scene .sc-frame { fill: none; stroke: var(--rule-strong); stroke-width: 1; }
+.scene .sc-label { fill: var(--ink-2); font-size: 13px; }
+.scene .goal { stroke: var(--ink); stroke-width: 2.5; stroke-linecap: round; fill: none; }
+.scene .origin { fill: var(--ink); }
+.scene .cand polyline { fill: none; stroke: var(--vlm); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; opacity: 0.8; transition: stroke 0.2s ease, stroke-width 0.2s ease, opacity 0.2s ease; }
+.scene .cand circle { fill: var(--vlm); stroke: var(--scene-floor); stroke-width: 1.5; transition: fill 0.2s ease; }
+.scene .cand.is-chosen polyline { stroke: var(--aff); stroke-width: 4; opacity: 1; }
+.scene .cand.is-chosen circle { fill: var(--aff); }
+.scene .badge rect { fill: var(--surface); stroke: var(--rule-strong); stroke-width: 1; }
+.scene .badge text { fill: var(--ink-2); font-size: 12px; font-variant-numeric: tabular-nums; }
+.scene .badge.is-chosen rect { fill: var(--aff-wash); stroke: var(--aff); stroke-width: 1.5; }
+.scene .badge.is-chosen text { fill: var(--ink); font-weight: 700; }
+@media (prefers-reduced-motion: reduce) {
+  .scene .cand polyline, .scene .cand circle { transition: none; }
+}
+.key-row { display: flex; flex-wrap: wrap; gap: 4px 20px; font-size: 13.5px; color: var(--ink-2); margin: 14px 0 0; }
+.key { display: inline-flex; align-items: center; gap: 8px; }
+.key-line { display: inline-block; width: 22px; border-top: 2px solid var(--vlm); }
+.key-line.is-chosen { border-top: 4px solid var(--aff); }
+.robot-toggle { display: inline-flex; gap: 2px; padding: 3px; margin: 16px 0 0; border: 1px solid var(--rule-strong); border-radius: 999px; background: var(--bg); }
+.robot-toggle button {
+  font: inherit; font-size: 14px; line-height: 1.4; border: 0; background: transparent; color: var(--ink-2);
+  padding: 7px 16px; border-radius: 999px; cursor: pointer; min-height: 36px;
+}
+.robot-toggle button[aria-pressed="true"] { background: var(--surface); color: var(--ink); font-weight: 700; box-shadow: 0 0 0 1px var(--rule-strong); }
+.hero-note { font-size: 14.5px; line-height: 1.75; margin: 12px 0 4px; min-height: 3.5em; }
+table.scores { font-size: 14px; margin-top: 4px; }
+table.scores td { font-variant-numeric: tabular-nums; }
+table.scores tbody th { white-space: nowrap; }
+table.scores small { font-weight: 400; color: var(--muted); font-size: 12px; }
+table.scores .is-active { background: var(--aff-wash); }
+.pick { display: inline-block; font-size: 11.5px; line-height: 1.5; font-weight: 600; padding: 0 7px; margin-left: 6px; border-radius: 999px; border: 1px solid var(--aff); color: var(--ink); vertical-align: 0.08em; }
+
+/* 図 */
+.arch .box { fill: var(--surface); stroke: var(--rule-strong); stroke-width: 1; }
+.arch .box-vlm { fill: var(--vlm-wash); stroke: var(--vlm); stroke-width: 1.5; }
+.arch .box-aff { fill: var(--aff-wash); stroke: var(--aff); stroke-width: 1.5; }
+.arch .t { fill: var(--ink); font-size: 13px; }
+.arch .t-title { fill: var(--ink); font-size: 15px; font-weight: 700; }
+.arch .t-sub { fill: var(--muted); font-size: 12px; }
+.arch .t-arrow { fill: var(--ink-2); font-size: 12.5px; }
+.arch .arr { stroke: var(--ink-2); stroke-width: 1.25; fill: none; }
+.arch { color: var(--ink-2); }
+
+/* 図3：最小値 */
+.chips { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px 8px; }
+.chip { display: flex; flex-direction: column; align-items: center; gap: 4px; font-variant-numeric: tabular-nums; }
+.chip small { font-size: 11.5px; color: var(--muted); }
+.chip b { display: block; min-width: 3.5em; text-align: center; padding: 5px 8px; border: 1px solid var(--rule-strong); border-radius: 6px; background: var(--surface); font-weight: 500; font-size: 15px; }
+.chip.is-min b { border: 2px solid var(--aff); background: var(--aff-wash); font-weight: 700; }
+.chip-to { color: var(--muted); padding: 0 2px 7px; }
+.chip-result { padding: 0 0 6px; font-weight: 700; font-size: 15px; }
+
+/* 図5：平均成功率 */
+.bars { display: grid; gap: 12px; padding: 4px 0; }
+.bar-row { display: grid; grid-template-columns: 6.8em minmax(0, 1fr); align-items: center; column-gap: 12px; font-size: 14px; line-height: 1.4; border-radius: 4px; }
+.bar-label { color: var(--ink-2); text-align: right; }
+.bar-track { position: relative; height: 14px; margin-right: 3.4em; border-left: 1px solid var(--axis); }
+.bar { position: absolute; left: 0; top: 0; bottom: 0; width: calc(var(--v) * 1%); background: var(--deemph); border-radius: 0 4px 4px 0; }
+.bar-val { position: absolute; left: calc(var(--v) * 1% + 6px); top: 50%; transform: translateY(-50%); font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--ink); font-size: 13.5px; }
+.bar-row.is-focus .bar { background: var(--vlm); }
+.bar-row.is-focus .bar-label, .bar-row.is-focus .bar-val { color: var(--ink); font-weight: 700; }
+.bar-row:hover .bar { filter: brightness(1.12); }
+
+/* 図6：コース別ヒートマップ */
+table.heat { table-layout: fixed; font-size: 14px; min-width: 296px; }
+table.heat th, table.heat td { border-bottom: 0; }
+table.heat thead th { text-align: center; font-size: 11.5px; line-height: 1.35; padding: 4px 0 8px; vertical-align: bottom; letter-spacing: 0; }
+table.heat thead th:first-child { text-align: left; width: 21%; }
+table.heat tbody th { font-weight: 500; font-size: 13.5px; line-height: 1.3; padding: 8px 4px 8px 0; }
+table.heat td { text-align: center; font-variant-numeric: tabular-nums; font-weight: 600; padding: 8px 2px; border: 2px solid var(--surface); }
+table.heat td:hover { outline: 2px solid var(--ink); outline-offset: -2px; }
+table.heat .h0 { color: var(--muted); font-weight: 500; }
+table.heat .h20 { background: var(--h20); color: var(--h20-ink); }
+table.heat .h40 { background: var(--h40); color: var(--h40-ink); }
+table.heat .h60 { background: var(--h60); color: var(--h60-ink); }
+table.heat .h80 { background: var(--h80); color: var(--h80-ink); }
+table.heat .h100 { background: var(--h100); color: var(--h100-ink); }
+table.heat tr.avg th, table.heat tr.avg td { box-shadow: inset 0 1px 0 var(--rule-strong); padding-top: 12px; font-weight: 700; background: transparent; color: var(--ink); }
+.heat-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; font-size: 12.5px; color: var(--muted); margin-top: 10px; }
+.heat-legend span { display: inline-flex; align-items: center; gap: 5px; font-variant-numeric: tabular-nums; }
+.heat-legend i { display: inline-block; width: 14px; height: 14px; border-radius: 3px; border: 1px solid var(--rule); }
+
+/* データ量の棒 */
+.hbar { display: block; height: 8px; margin-top: 6px; width: calc(var(--v) * 1%); min-width: 3px; background: var(--vlm); border-radius: 0 4px 4px 0; }
+
+/* 図7：機体ごとの経路選択 */
+.split-legend { display: flex; flex-wrap: wrap; gap: 4px 18px; font-size: 13.5px; color: var(--ink-2); margin: 0 0 6px; }
+.split-legend span { display: inline-flex; align-items: center; gap: 7px; }
+.split-legend i { display: inline-block; width: 14px; height: 8px; border-radius: 2px; }
+.split { display: flex; gap: 2px; min-width: 96px; margin-top: 9px; }
+.split span { height: 8px; flex: var(--n) 1 0; }
+.split span:first-child { border-radius: 4px 0 0 4px; }
+.split span:last-child { border-radius: 0 4px 4px 0; }
+.s-stairs { background: var(--stairs); }
+.s-ramp { background: var(--ramp); }
+.hours { font-variant-numeric: tabular-nums; white-space: nowrap; }
+table.choice th, table.choice td { padding-left: 8px; padding-right: 8px; }
+table.choice thead th:not(:nth-child(3)) { white-space: nowrap; }
+table.choice td { font-variant-numeric: tabular-nums; }
+@media (max-width: 480px) { .fig { padding: 12px; } }
+
+/* 用語集 */
+dl.glossary { margin: 0; }
+dl.glossary dt { font-weight: 700; margin-top: 18px; }
+dl.glossary dd { margin: 2px 0 0; color: var(--ink); }
+
+.refs li { margin: 0.6em 0; }
+.foot { margin-top: 80px; padding-top: 20px; border-top: 1px solid var(--rule); font-size: 13.5px; color: var(--ink-2); }
+</style>
+</head>
+<body>
+<a class="skip" href="#content">本文へ移動</a>
+<div class="page">
+
+<aside class="toc-rail" aria-label="目次">
+  <nav class="toc">
+    <p class="toc-title">目次</p>
+    <ol>
+      <li><a href="#summary">要点</a></li>
+      <li><a href="#motivation">2&nbsp;層に分ける理由</a></li>
+      <li><a href="#pipeline">1&nbsp;回の計画の流れ</a></li>
+      <li><a href="#planner">上位層：VLM プランナー</a></li>
+      <li><a href="#data">VLM の学習データ</a></li>
+      <li><a href="#affordance">下位層：アフォーダンス</a></li>
+      <li><a href="#runtime">実行時のループ</a></li>
+      <li><a href="#experiments">実験</a></li>
+      <li><a href="#limitations">失敗例と限界</a></li>
+      <li><a href="#omnivla">OmniVLA との比較</a></li>
+      <li><a href="#reproduce">再現のためのメモ</a></li>
+      <li><a href="#glossary">用語集</a></li>
+      <li><a href="#refs">参考文献</a></li>
+    </ol>
+  </nav>
+</aside>
+
+<main id="content">
+
+<header class="masthead">
+  <h1>VAMOS</h1>
+  <p class="subtitle">行き先を考える VLM と、通れるかを判定する機体ごとのモデルを分けた、階層型のナビゲーション VLA</p>
+  <p class="title-en">VAMOS: A Hierarchical Vision-Language-Action Model for Capability-Modulated and Steerable Navigation</p>
+</header>
+
+<figure class="hero" data-hero>
+  <div class="fig">
+    <svg class="scene" viewBox="0 0 400 280" role="img" aria-label="カメラ画像の上に VLM が描いた 3 本の経路候補。左は階段経由、中央は段差に突っ込む直進、右はスロープ経由。選ばれた経路をオレンジで示す。">
+      <defs>
+        <clipPath id="scene-clip"><rect x="0" y="0" width="400" height="280" rx="8"/></clipPath>
+      </defs>
+      <g clip-path="url(#scene-clip)">
+        <rect class="sc-back" x="0" y="0" width="400" height="30"/>
+        <rect class="sc-top" x="0" y="30" width="400" height="66"/>
+        <rect class="sc-wall" x="0" y="96" width="400" height="54"/>
+        <rect class="sc-floor" x="52" y="96" width="96" height="54"/>
+        <rect class="sc-ramp" x="252" y="96" width="96" height="54"/>
+        <rect class="sc-floor" x="0" y="150" width="400" height="130"/>
+        <path class="sc-line" d="M52 105.5H148M52 114.5H148M52 123.5H148M52 132.5H148M52 141.5H148"/>
+        <path class="sc-line" d="M0 96.5H400M0 150.5H400M52.5 96V150M147.5 96V150M252.5 96V150M347.5 96V150"/>
+        <path class="sc-line" d="M252 150L348 96"/>
+      </g>
+      <rect class="sc-frame" x="0.5" y="0.5" width="399" height="279" rx="8"/>
+      <text class="sc-label" x="70" y="173" text-anchor="middle">階段</text>
+      <text class="sc-label" x="330" y="173" text-anchor="middle">スロープ</text>
+      <text class="sc-label" x="174" y="128" text-anchor="middle">段差</text>
+      <path class="goal" d="M193 51l14 14M207 51l-14 14"/>
+      <text class="sc-label" x="215" y="63">ゴール</text>
+
+      <g class="cand" data-path="straight">
+        <polyline points="200,266 200,230 200,202 200,174 200,140 200,84"/>
+        <circle cx="200" cy="230" r="3.5"/><circle cx="200" cy="202" r="3.5"/><circle cx="200" cy="174" r="3.5"/><circle cx="200" cy="140" r="3.5"/><circle cx="200" cy="84" r="3.5"/>
+      </g>
+      <g class="cand" data-path="ramp">
+        <polyline points="200,266 216,232 242,203 274,172 296,128 252,76"/>
+        <circle cx="216" cy="232" r="3.5"/><circle cx="242" cy="203" r="3.5"/><circle cx="274" cy="172" r="3.5"/><circle cx="296" cy="128" r="3.5"/><circle cx="252" cy="76" r="3.5"/>
+      </g>
+      <g class="cand is-chosen" data-path="stairs">
+        <polyline points="200,266 184,232 158,203 126,172 104,128 148,76"/>
+        <circle cx="184" cy="232" r="3.5"/><circle cx="158" cy="203" r="3.5"/><circle cx="126" cy="172" r="3.5"/><circle cx="104" cy="128" r="3.5"/><circle cx="148" cy="76" r="3.5"/>
+      </g>
+      <circle class="origin" cx="200" cy="266" r="5"/>
+
+      <g class="badge is-chosen" data-path="stairs">
+        <rect x="86" y="194" width="46" height="21" rx="10.5"/>
+        <text x="109" y="209" text-anchor="middle" data-score="stairs">0.91</text>
+      </g>
+      <g class="badge" data-path="ramp">
+        <rect x="268" y="194" width="46" height="21" rx="10.5"/>
+        <text x="291" y="209" text-anchor="middle" data-score="ramp">0.88</text>
+      </g>
+      <g class="badge" data-path="straight">
+        <rect x="210" y="121" width="46" height="21" rx="10.5"/>
+        <text x="233" y="136" text-anchor="middle" data-score="straight">0.04</text>
+      </g>
+    </svg>
+
+    <div class="key-row" aria-hidden="true">
+      <span class="key"><span class="key-line"></span>VLM が描いた候補（各 5&nbsp;点）</span>
+      <span class="key"><span class="key-line is-chosen"></span>アフォーダンスで選ばれた経路</span>
+    </div>
+
+    <div class="robot-toggle" role="group" aria-label="表示する機体">
+      <button type="button" data-robot="spot" aria-pressed="true">Spot（脚）</button>
+      <button type="button" data-robot="hound" aria-pressed="false">Hound（車輪）</button>
+    </div>
+    <p class="hero-note" data-note aria-live="polite">Spot は階段もスロープも上れるので、どちらの候補も高得点になる。段差に突っ込む直進だけが落とされ、最も高い階段経由が選ばれる。</p>
+
+    <div class="table-wrap">
+      <table class="scores">
+        <thead>
+          <tr><th scope="col">候補</th><th scope="col" class="num is-active" data-col="spot">Spot</th><th scope="col" class="num" data-col="hound">Hound</th></tr>
+        </thead>
+        <tbody>
+          <tr><th scope="row">階段経由</th><td class="num is-active" data-col="spot"><strong>0.91</strong><span class="pick">選択</span></td><td class="num" data-col="hound">0.05</td></tr>
+          <tr><th scope="row">スロープ経由</th><td class="num is-active" data-col="spot">0.88</td><td class="num" data-col="hound"><strong>0.86</strong><span class="pick">選択</span></td></tr>
+          <tr><th scope="row">直進<br><small>段差に突っ込む</small></th><td class="num is-active" data-col="spot">0.04</td><td class="num" data-col="hound">0.03</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <figcaption><span class="fig-num">図 1</span>VLM は画像の上に経路候補を描くだけで、どの機体で走るかは知らない。機体ごとのアフォーダンスモデルが候補を採点し直して 1&nbsp;本を選ぶ。場面は論文の機体間実験（階段とスロープが並ぶ段差）を模したもので、スコアは仕組みを示すための架空の値。</figcaption>
+</figure>
+
+<dl class="meta">
+  <dt>著者</dt>
+  <dd>Mateo Guaman Castro, Sidharth Rajagopal, Daniel Gorbatov, Matt Schmittle, Rohan Baijal, Octi Zhang, Rosario Scalise, Sidharth Talia, Emma Romig, Celso de Melo, Byron Boots, Abhishek Gupta</dd>
+  <dt>所属</dt>
+  <dd>University of Washington、DEVCOM Army Research Laboratory</dd>
+  <dt>公開</dt>
+  <dd>arXiv:2510.20818（v1、2025&nbsp;年 10&nbsp;月 23&nbsp;日）。2026&nbsp;年 11&nbsp;月時点で、arXiv 上に掲載先の記載はない</dd>
+  <dt>リンク</dt>
+  <dd class="links">
+    <a href="https://arxiv.org/abs/2510.20818">論文（arXiv）</a>
+    <a href="https://vamos-vla.github.io/">プロジェクトページ</a>
+    <a href="https://github.com/vamos-vla/vamos">コード</a>
+    <a href="https://mateoguaman-vamos.hf.space">デモ</a>
+  </dd>
+</dl>
+
+<details class="toc-mobile">
+  <summary>目次</summary>
+  <nav class="toc" aria-label="目次">
+    <ol>
+      <li><a href="#summary">要点</a></li>
+      <li><a href="#motivation">2&nbsp;層に分ける理由</a></li>
+      <li><a href="#pipeline">1&nbsp;回の計画の流れ</a></li>
+      <li><a href="#planner">上位層：VLM プランナー</a></li>
+      <li><a href="#data">VLM の学習データ</a></li>
+      <li><a href="#affordance">下位層：アフォーダンス</a></li>
+      <li><a href="#runtime">実行時のループ</a></li>
+      <li><a href="#experiments">実験</a></li>
+      <li><a href="#limitations">失敗例と限界</a></li>
+      <li><a href="#omnivla">OmniVLA との比較</a></li>
+      <li><a href="#reproduce">再現のためのメモ</a></li>
+      <li><a href="#glossary">用語集</a></li>
+      <li><a href="#refs">参考文献</a></li>
+    </ol>
+  </nav>
+</details>
+
+<section id="summary">
+  <h2>要点</h2>
+  <p class="lead">ナビゲーションの基盤モデルを、脚や車輪といった機体の違いに強くするための設計の論文。押さえるべき点は次の 5&nbsp;つ。</p>
+  <ol>
+    <li><strong>役割を 2&nbsp;層に分ける。</strong>上位の VLM は「どこを通ってゴールへ行くか」だけを考え、下位のアフォーダンスモデルは「この機体がその地形を越えられるか」だけを判定する。</li>
+    <li><strong>2&nbsp;層をつなぐのは、カメラ画像の上に描いた経路。</strong>VLM が画像とゴール座標から経路候補を複数描き、下位がそれを地面に投影して採点し、選び直す。</li>
+    <li><strong>上位は機体をまたいで使い回す。</strong>VLM は 3&nbsp;種類の機体の実走行データ 29.8&nbsp;時間で一度だけ学習し、下位は機体ごとにシミュレーションで安く学習する。</li>
+    <li><strong>言語で経路の好みを足せる。</strong>「スロープを通って」「人の右側を通って」のような一文で、描かれる経路が変わる。</li>
+    <li><strong>実機 6&nbsp;コースで平均成功率 90%。</strong>比較手法は 10〜67%。同じ VLM のまま、脚ロボットの Spot と車輪ロボットの Hound の両方で動いた。</li>
+  </ol>
+</section>
+
+<section id="motivation">
+  <h2>2&nbsp;層に分ける理由</h2>
+  <p>ナビゲーションの基盤モデルは、学習データを増やすほど未知の環境に強くなる。ところがデータを増やすほど、別々のロボットで集めた雑多なデータが混ざる。四足ロボットが階段を上るデータは、階段を上れない車輪ロボットにとっては真似してはいけない手本になる。データは増やしたいのに、混ぜると機体に合わない行動まで覚えてしまう。これが論文の出発点である。</p>
+  <p>論文は既存のアプローチを 3&nbsp;つに分けて、どれもこの問題をうまく扱えていないと整理している。</p>
+  <div class="table-wrap">
+    <table class="stack">
+      <colgroup><col style="width:23%"><col style="width:19%"><col style="width:22%"><col style="width:36%"></colgroup>
+      <thead>
+        <tr><th scope="col">方式</th><th scope="col">モデルが出すもの</th><th scope="col">機体の違いへの対応</th><th scope="col">論文が指摘する弱点</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <th scope="row">モジュール型<br><small>幾何スタック、ViPlanner</small></th>
+          <td data-label="モデルが出すもの">コストマップ上の経路</td>
+          <td data-label="機体の違いへの対応">機体ごとに知覚と計画を調整し直す</td>
+          <td data-label="論文が指摘する弱点">調整の手間が大きい。コストマップのような中間表現で情報が落ち、知覚の誤りがそのまま計画の失敗になる</td>
+        </tr>
+        <tr>
+          <th scope="row">エンドツーエンドの基盤モデル<br><small>GNM、ViNT、NoMaD</small></th>
+          <td data-label="モデルが出すもの">速度指令などの行動</td>
+          <td data-label="機体の違いへの対応">機体ごとの能力もデータから暗黙に学ぶ</td>
+          <td data-label="論文が指摘する弱点">意味の理解と機体の能力を 1&nbsp;つのモデルに背負わせるので、平坦な地面以外で崩れやすい。ゴール画像を撮るための事前走行や、長距離では事前の地図に頼りがち</td>
+        </tr>
+        <tr>
+          <th scope="row">行動を文で出す VLA<br><small>NaVILA</small></th>
+          <td data-label="モデルが出すもの">「25&nbsp;cm 前進」のような短い文</td>
+          <td data-label="機体の違いへの対応">文を下位の歩行ポリシーが実行する</td>
+          <td data-label="論文が指摘する弱点">座標のようなゴールを文で伝えるのは面倒で曖昧。短い離散コマンドは長距離の計画に向かず、機体の制約で調整する口もない</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <p>VAMOS の答えは、機体に関係なく通用する判断（ゴールはどちらか、障害物をどう回り込むか）と、機体ごとに違う判断（その段差を越えられるか）を別のモデルに任せることだ。前者は大量の雑多な実データで、後者は機体ごとにシミュレーションで学習する。混ぜたデータに含まれる「機体に合わない行動」は、下位の層が実行前にはじく。</p>
+</section>
+
+<section id="pipeline">
+  <h2>1&nbsp;回の計画の流れ</h2>
+  <figure>
+    <div class="fig">
+      <svg class="arch" viewBox="0 0 380 548" role="img" aria-label="1 回の計画の流れ。カメラ画像、ゴール座標、好みの文を VLM プランナーに入れ、K 本の経路候補を得る。候補を地面に投影し、標高マップを入力とするアフォーダンスモデルで採点し、最大の候補の先頭 m 点を機体の下位コントローラが追従する。">
+        <defs>
+          <marker id="arch-arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0 0L10 5L0 10z" fill="currentColor"/>
+          </marker>
+        </defs>
+        <rect class="box" x="16" y="8" width="108" height="48" rx="8"/>
+        <text class="t" x="70" y="29" text-anchor="middle">カメラ画像</text>
+        <text class="t-sub" x="70" y="47" text-anchor="middle">単眼 RGB・1&nbsp;枚</text>
+        <rect class="box" x="136" y="8" width="108" height="48" rx="8"/>
+        <text class="t" x="190" y="29" text-anchor="middle">ゴール座標</text>
+        <text class="t-sub" x="190" y="47" text-anchor="middle">テキストで渡す</text>
+        <rect class="box" x="256" y="8" width="108" height="48" rx="8"/>
+        <text class="t" x="310" y="29" text-anchor="middle">好みの文</text>
+        <text class="t-sub" x="310" y="47" text-anchor="middle">任意</text>
+        <line class="arr" x1="70" y1="56" x2="70" y2="84" marker-end="url(#arch-arrow)"/>
+        <line class="arr" x1="190" y1="56" x2="190" y2="84" marker-end="url(#arch-arrow)"/>
+        <line class="arr" x1="310" y1="56" x2="310" y2="84" marker-end="url(#arch-arrow)"/>
+
+        <rect class="box-vlm" x="16" y="84" width="348" height="68" rx="8"/>
+        <text class="t-title" x="28" y="108">上位：VLM プランナー</text>
+        <text class="t-sub" x="352" y="108" text-anchor="end">機体に依存しない</text>
+        <text class="t" x="28" y="128">PaliGemma 2 3B ＋ LoRA</text>
+        <text class="t-sub" x="28" y="145">実走行データ 29.8&nbsp;時間で学習</text>
+
+        <line class="arr" x1="100" y1="152" x2="100" y2="198" marker-end="url(#arch-arrow)"/>
+        <text class="t-arrow" x="112" y="180">候補 K 本（各 5&nbsp;点・画像座標）</text>
+
+        <rect class="box" x="16" y="198" width="348" height="40" rx="8"/>
+        <text class="t" x="190" y="223" text-anchor="middle">地面に投影（カメラの内部・外部パラメータ）</text>
+
+        <line class="arr" x1="100" y1="238" x2="100" y2="284" marker-end="url(#arch-arrow)"/>
+        <text class="t-arrow" x="112" y="266">地面上の点列（位置と向き）</text>
+
+        <rect class="box-aff" x="16" y="284" width="222" height="68" rx="8"/>
+        <text class="t-title" x="28" y="308">下位：アフォーダンス</text>
+        <text class="t" x="28" y="328">F<tspan font-size="10" dy="3">π</tspan><tspan dy="-3">：機体ごとの小さな MLP</tspan></text>
+        <text class="t-sub" x="28" y="345">シミュレーションで学習</text>
+
+        <rect class="box" x="262" y="292" width="102" height="52" rx="8"/>
+        <text class="t" x="313" y="314" text-anchor="middle">標高マップ</text>
+        <text class="t-sub" x="313" y="333" text-anchor="middle">LiDAR／深度</text>
+        <line class="arr" x1="262" y1="318" x2="238" y2="318" marker-end="url(#arch-arrow)"/>
+
+        <line class="arr" x1="100" y1="352" x2="100" y2="398" marker-end="url(#arch-arrow)"/>
+        <text class="t-arrow" x="112" y="380">経路スコア＝各点の最小値</text>
+
+        <rect class="box" x="16" y="398" width="348" height="40" rx="8"/>
+        <text class="t" x="190" y="423" text-anchor="middle">最大の候補を選ぶ（softmax で抽選も可）</text>
+
+        <line class="arr" x1="100" y1="438" x2="100" y2="484" marker-end="url(#arch-arrow)"/>
+        <text class="t-arrow" x="112" y="466">先頭 m 点（m＝3〜4）</text>
+
+        <rect class="box" x="16" y="484" width="348" height="56" rx="8"/>
+        <text class="t" x="28" y="507" font-weight="700">機体の下位コントローラが追従</text>
+        <text class="t-sub" x="28" y="527">Spot：純正の歩行制御／Hound：pure pursuit</text>
+      </svg>
+    </div>
+    <figcaption><span class="fig-num">図 2</span>1&nbsp;回の計画の流れ。青は機体に依存しない層、オレンジは機体ごとに差し替える層。VLM は経路を描くだけで、どれを走るかは下位の層が決める。</figcaption>
+  </figure>
+  <ol>
+    <li>カメラ画像 1&nbsp;枚と、ゴールの位置を画像座標に直してテキストにしたものを VLM に入れる。必要なら「芝生を避けて」のような好みの文を後ろにつける。</li>
+    <li>VLM が経路候補を K 本サンプリングする。1&nbsp;本は 5&nbsp;点の画像座標で、ロボットがこれから接地していく位置を表す。</li>
+    <li>カメラの内部・外部パラメータを使い、各点を地面の上の座標に投影する。</li>
+    <li>アフォーダンスモデルが、ロボットまわりの標高マップを見ながら、各点を「その向きで通れる確率」で採点する。</li>
+    <li>各経路の点のうち最も低いスコアを、その経路のスコアにする。1&nbsp;か所でも通れなければ、経路全体が通れないからだ。</li>
+    <li>スコアが最大の経路を選ぶ。温度つきの softmax で抽選してもよい。</li>
+    <li>機体に元からある下位コントローラが、選んだ経路の先頭 m 点を追従し、着いたら次の計画に移る。</li>
+  </ol>
+  <p>情報の流れが双方向なのがポイントだ。上位は下位に「ここを通って」と経由点を渡し、下位は上位の提案に「その道はこの機体では無理」と拒否権を持つ。</p>
+</section>
+
+<section id="planner">
+  <h2><span class="layer layer-vlm" aria-hidden="true"></span>上位層：VLM プランナー</h2>
+  <h3>入力と出力</h3>
+  <p>ベースは PaliGemma 2&nbsp;の 3B モデル（入力画像 224×224）で、これを LoRA で教師あり微調整する。全パラメータの微調整とも比べたが、性能はほぼ同じだったという。</p>
+  <p>入力はカメラ画像 1&nbsp;枚と、ゴールの画像座標を埋め込んだ指示文。座標は、PaliGemma が物体検出などで座標を書くために元から持っている位置トークンで表す。画像の縦横をそれぞれ 1024&nbsp;段階に区切ったもので、<code>&lt;loc0000&gt;</code> から <code>&lt;loc1023&gt;</code> まである。</p>
+<pre><code>Navigate to x=&lt;loc0512&gt;, y=&lt;loc0287&gt;
+Navigate to x=&lt;loc0512&gt;, y=&lt;loc0287&gt;. Stay away from the grass.</code></pre>
+  <p class="pre-note">指示文の形式。座標の値と 2&nbsp;行目の好みの文は、この資料で作った例。</p>
+  <p>出力も位置トークンの並びで、2&nbsp;トークンで 1&nbsp;点、5&nbsp;点で 1&nbsp;本の経路になる。これを座標に戻し、地面に投影して使う。式で書くと、画像 <i>I</i> とゴール <i>g</i> から経路 <i>τ</i> を生成するモデルである。</p>
+  <div class="eq" role="math" aria-label="P sub phi of tau given I and g sub I"><i>P</i><sub><i>φ</i></sub>(<i>τ</i> <span class="op">|</span> <i>I</i>, <i>g</i><sub><i>I</i></sub>)</div>
+  <p>ゴールが画像の外にあると座標を描けない。そのため実行時は、まずその場で回転してゴールを視野に入れてから計画する（<a href="#runtime">実行時のループ</a>）。</p>
+
+  <h3>なぜ「画像の上の経路」なのか</h3>
+  <ul>
+    <li><strong>機体の違いを吸収できる。</strong>四足、車輪、ATV のように行動空間が違うデータも、「画像に投影した将来の接地位置」なら同じ形式で扱える。</li>
+    <li><strong>VLM の汎化を壊しにくい。</strong>画像上の点を予測させる微調整は、事前学習で得た汎化能力を保ちやすい。これは HAMSTER や RoboPoint などの先行研究の知見に沿っている。</li>
+    <li><strong>後段で評価しやすい。</strong>連続した座標の経路なので、地面に投影すれば機体ごとのモデルで点ごとに採点できる。文で行動を出す方式には、この調整の口がない。</li>
+    <li><strong>地図も事前の走行もいらない。</strong>ゴールは座標で与えるので、ゴール画像を撮りに行く必要がない。</li>
+  </ul>
+
+  <h3>正解の経路の作り方</h3>
+  <p>正解は走行ログから後付けで作る。ある時刻の画像に対して、その後ロボットが実際に通った地面上の位置をオドメトリから取り出し、カメラパラメータで画像に投影する。カメラの位置ではなく地面上の位置を使うので、壁の陰のように画像では見えない場所を通る経路も正解に含められる。</p>
+</section>
+
+<section id="data">
+  <h2><span class="layer layer-vlm" aria-hidden="true"></span>VLM の学習データ</h2>
+  <p>VLM の学習に使ったのは、3&nbsp;種類の機体で集めた 4&nbsp;つのデータセット、合計 29.8&nbsp;時間（514K サンプル）である。</p>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th scope="col">データセット</th><th scope="col" style="width:24%">時間</th><th scope="col" class="num">使ったサンプル</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <th scope="row">SCAND<br><small>Spot、人の多いキャンパス</small></th>
+          <td class="hours">19.5&nbsp;h<span class="hbar" style="--v: 100" aria-hidden="true"></span></td>
+          <td class="num">351.2K（50%）</td>
+        </tr>
+        <tr>
+          <th scope="row">CODa<br><small>車輪型ロボット、キャンパス</small></th>
+          <td class="hours">7.8&nbsp;h<span class="hbar" style="--v: 40" aria-hidden="true"></span></td>
+          <td class="num">70.5K（25%）</td>
+        </tr>
+        <tr>
+          <th scope="row">TartanDrive 2<br><small>オフロード ATV</small></th>
+          <td class="hours">2.2&nbsp;h<span class="hbar" style="--v: 11.3" aria-hidden="true"></span></td>
+          <td class="num">79.1K（100%）</td>
+        </tr>
+        <tr>
+          <th scope="row">Spot（自前）<br><small>評価環境に近い場所</small></th>
+          <td class="hours">0.3&nbsp;h<span class="hbar" style="--v: 1.5" aria-hidden="true"></span></td>
+          <td class="num">11.2K（100%）</td>
+        </tr>
+        <tr>
+          <th scope="row">手描きの経路<br><small>機体間実験の場所で追加</small></th>
+          <td class="hours">—</td>
+          <td class="num">2K（100%）</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="table-note">括弧内は、各データセットのうち実際に使った割合。</p>
+  <ul>
+    <li>SCAND は Spot と Jackal で集めたデータだが、Jackal 側は正確なカメラパラメータが得られず、Spot 側だけを使っている。質が高く場面も多様なので、多めに残した。</li>
+    <li>CODa は天候や明るさの変化はあるものの、似た場面が延々と続くので 25% に減らした。</li>
+    <li>TartanDrive 2&nbsp;は、オドメトリのノイズが大きい軌跡を除いたうえで全部使う。</li>
+  </ul>
+  <p>この比率は試行錯誤で決めたもので、全データをそのまま使う場合や一様に間引く場合よりも良かったという。</p>
+
+  <h3>前処理</h3>
+  <p>素直にデータを集めると、ほとんどが直進になる。そこで 2&nbsp;つの工夫をしている。</p>
+  <ul>
+    <li><strong>予測距離を 2&nbsp;種類混ぜる。</strong>短い経路と長い経路を半々でサンプリングし、経路の形にばらつきを出す。</li>
+    <li><strong>曲がった経路を優先する。</strong>経路の長さを始点と終点の直線距離で割った値 <i>c</i> で並べ、上位を残す。ただし <i>c</i> が極端に大きい上位 3% はオドメトリのノイズとみなして捨てる。</li>
+  </ul>
+  <div class="eq" role="math" aria-label="c equals the sum of distances between consecutive waypoints divided by the distance between the first and last waypoints"><i>c</i> <span class="op">=</span> <span class="frac"><span>Σ<span class="lim"><sup><i>k</i>−1</sup><sub><i>i</i>=1</sub></span>‖<i>w</i><sup><i>i</i>+1</sup> − <i>w</i><sup><i>i</i></sup>‖</span><span>‖<i>w</i><sup><i>k</i></sup> − <i>w</i><sup>1</sup>‖</span></span></div>
+
+  <h3>言語で操れるようにする工夫</h3>
+  <p>好みの文に従わせるには「文と経路の対」が要るが、既存のデータセットにはそれがない。そこで手元のデータから合成している。</p>
+  <ol>
+    <li>学習データの 10% について、正解の経路に時間方向になめらかなノイズを加えた経路を 4&nbsp;本、左右を反転した経路を 1&nbsp;本作る。</li>
+    <li>正解を含む 6&nbsp;本を画像に重ねて描き、GPT-5-mini に「障害物と地形の説明 → 各経路の説明 → 質と多様性での順位付け」を順に考えさせる。</li>
+    <li>上位 3&nbsp;本を、その経路の説明文とセットで学習データに加える。説明文がそのまま「好みの文」になる。</li>
+  </ol>
+  <p>あわせて、画像 QA（COCO-QA）と画像の説明文（Localized Narratives）のデータも混ぜて学習し、VLM が元の言語能力を忘れないようにしている。</p>
+
+  <h3>効かなかったデータ</h3>
+  <p>実務で参考になるのが、うまくいかなかったデータの報告だ。</p>
+  <ul>
+    <li><strong>人が歩いて撮った魚眼動画（3.7&nbsp;時間）。</strong>CoTracker で地面の点を追って軌跡を推定したが、遮蔽で軌跡が途切れて短くなり、ノイズも多く、ほぼ直進ばかりになって性能が下がった。MASt3R-SLAM は遮蔽に強かったものの、長い軌跡の処理が重すぎた。</li>
+    <li><strong>iPhone で集めたデータ（2.3&nbsp;時間）。</strong>ARKit のオドメトリを使い、階段とスロープの別ルートのような狙った場面を手早く集められた。ただし全部混ぜると予測経路がくねくねになり、指標が悪化した。著者は、この集め方自体は有望とみている。</li>
+  </ul>
+</section>
+
+<section id="affordance">
+  <h2><span class="layer layer-aff" aria-hidden="true"></span>下位層：アフォーダンスモデル</h2>
+  <h3>何を予測するか</h3>
+  <div class="eq" role="math" aria-label="F sub pi of M, x, y, a is in the interval from 0 to 1"><i>F</i><sub><i>π</i></sub>(<i>M</i>, <i>x</i>, <i>y</i>, <i>a</i>) <span class="op">∈</span> [0, 1]</div>
+  <p>機体の下位ポリシー <i>π</i>（歩行や走行の制御）が、局所標高マップ <i>M</i> の上で、位置 (<i>x</i>, <i>y</i>) を向き <i>a</i> で通過できる確率を出す。向きは 45° 刻みの 8&nbsp;方向。中身は小さな MLP で、機体と下位ポリシーの組ごとに 1&nbsp;つ用意する。</p>
+  <p>見ているのは標高マップだけなので、このモデルが知っているのは地形の形と機体の能力の関係に限られる。ゴールの方向や障害物の意味といった判断は、すべて上位に任せる。</p>
+
+  <h3>経路の採点と選択</h3>
+  <div class="eq" role="math" aria-label="the score of path tau i is the minimum over its points of F sub pi"><i>F</i><sup>c</sup>(<i>τ</i><sub><i>i</i></sub>) <span class="op">=</span> min<sub><i>j</i></sub> <i>F</i><sub><i>π</i></sub>(<i>M</i>, <i>x</i><sub><i>j</i></sub>, <i>y</i><sub><i>j</i></sub>, <i>a</i><sub><i>j</i></sub>)</div>
+  <div class="eq" role="math" aria-label="the selected path tau star is sampled from a softmax of the path scores divided by temperature beta"><i>τ</i><sup>∗</sup> <span class="op">∼</span> Softmax(<i>F</i><sup>c</sup>(<i>τ</i><sub>1</sub>)/<i>β</i>, …, <i>F</i><sup>c</sup>(<i>τ</i><sub><i>K</i></sub>)/<i>β</i>)</div>
+  <p>経路のスコアは、点ごとのスコアの最小値である。1&nbsp;か所でも通れない点があれば、その経路は通れない。最後はスコア最大の経路を選ぶか、温度 <i>β</i> の softmax で抽選して、実行する経路 <i>τ</i><sup>∗</sup> を決める。</p>
+  <figure>
+    <div class="fig">
+      <div class="chips" role="img" aria-label="5 点のスコア 0.96、0.93、0.05、0.07、0.92 のうち最小の 0.05 が経路スコアになる">
+        <span class="chip"><small>点 1</small><b>0.96</b></span>
+        <span class="chip"><small>点 2</small><b>0.93</b></span>
+        <span class="chip is-min"><small>点 3</small><b>0.05</b></span>
+        <span class="chip"><small>点 4</small><b>0.07</b></span>
+        <span class="chip"><small>点 5</small><b>0.92</b></span>
+        <span class="chip-to" aria-hidden="true">→</span>
+        <span class="chip-result">経路スコア 0.05</span>
+      </div>
+    </div>
+    <figcaption><span class="fig-num">図 3</span>Hound が階段経由の候補を採点した例（説明用の値）。段の途中の点で 0&nbsp;近くまで下がり、経路全体のスコアもそこで決まる。</figcaption>
+  </figure>
+  <p>この選び直しには 2&nbsp;つの効き目がある。ひとつは、機体の能力に合う候補を選ぶこと（階段か、スロープか）。もうひとつは、障害物を突っ切るような VLM のおかしな候補を捨てることだ。</p>
+
+  <h3>シミュレーションでの学習</h3>
+  <p>データは Isaac Lab で集める。手順は次のとおり。</p>
+  <ol>
+    <li>10&nbsp;m 四方の地形を 1000&nbsp;個、5&nbsp;種類を同じ数ずつ生成する。</li>
+    <li>地形の上にロボットを置き、ランダムな方向に向けて、下位ポリシーで短時間走らせる。</li>
+    <li>指令した方向に進めたら成功、詰まるか転んだら失敗とラベルを付ける。</li>
+    <li>（標高マップ、位置、向き、成否）の組で、MLP を二値交差エントロピーで学習する。</li>
+  </ol>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th scope="col">地形</th><th scope="col">作り方</th></tr></thead>
+      <tbody>
+        <tr><th scope="row" class="nowrap">単純な階段</th><td>平地の間に長さ 6&nbsp;m・幅 10&nbsp;m の階段を置く。踏面は 0.4&nbsp;m、蹴上げは 0.05〜0.15&nbsp;m の一様乱数</td></tr>
+        <tr><th scope="row" class="nowrap">単純なスロープ</th><td>平地の間を、傾きをランダムにしたスロープでつなぐ</td></tr>
+        <tr><th scope="row" class="nowrap">組み合わせ構造</th><td>2&nbsp;m 角のタイル 25&nbsp;枚を箱、スロープ、階段、平地から選び、Wave Function Collapse で矛盾のない配置にする（階段の上端と隣のタイルの高さをそろえる、など）</td></tr>
+        <tr><th scope="row" class="nowrap">なだらかな起伏</th><td>セル・オートマトンで作る。ランダムな種点に 1〜3&nbsp;m の高さを与えて各セルを最寄りの種点の高さにし、急な段差を平均でならす</td></tr>
+        <tr><th scope="row" class="nowrap">不規則な段々</th><td>なだらかな起伏の高さを段差の倍数に丸める。局所的な急段差への頑健性を上げるため</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>Spot の失敗判定は単純だ。実際の速度のうち指令方向の成分が、指令の 0.3&nbsp;倍を下回ったら「ぶつかった」とみなす（加速中の最初の 0.5&nbsp;秒は判定しない）。下向きの速度が大きいときや、ロールかピッチが 45° を超えたときは転倒とみなす。</p>
+  <p>Spot 純正の歩行制御はシミュレーションでは使えないので、Isaac Lab で PPO により学習した知覚つきの歩行ポリシー（足元の高さを入力に使う）を代役にした。Hound は、短い距離なら直進でも旋回でも通れる場所はほぼ同じなので、直進のデータだけを集め、自転車モデルの pure pursuit で走らせた。</p>
+  <p>報酬の割引和を回帰する、強化学習の価値関数のような作り方も試したが、成功と失敗の分類のほうがはっきりしたスコアになった。成功と失敗の数をそろえやすいことと、関係のない観測どうしのラベルが混ざりにくいことが理由だと著者はみている。</p>
+</section>
+
+<section id="runtime">
+  <h2>実行時のループ</h2>
+  <p>ミッションは GPS のウェイポイントか、世界座標の点列で与える。長いコースでは約 10&nbsp;m ごとに中間点を置く。実行は単純な状態機械で回す。</p>
+  <figure>
+    <div class="fig">
+      <svg class="arch" viewBox="0 0 380 300" role="img" aria-label="実行時のループ。ゴールが画像内になければその場で回転する。画像内なら VLM で候補を描いてアフォーダンスで 1 本選び、先頭 m 点を追従し、到達するか 20 秒たったら次の計画に戻る。">
+        <defs>
+          <marker id="loop-arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0 0L10 5L0 10z" fill="currentColor"/>
+          </marker>
+        </defs>
+        <rect class="box" x="96" y="16" width="154" height="40" rx="20"/>
+        <text class="t" x="173" y="41" text-anchor="middle">ゴールは画像内？</text>
+        <rect class="box" x="300" y="16" width="68" height="40" rx="8"/>
+        <text class="t" x="334" y="33" text-anchor="middle">その場で</text>
+        <text class="t" x="334" y="49" text-anchor="middle">回転</text>
+        <line class="arr" x1="250" y1="29" x2="300" y2="29" marker-end="url(#loop-arrow)"/>
+        <text class="t-arrow" x="275" y="22" text-anchor="middle">いいえ</text>
+        <line class="arr" x1="300" y1="45" x2="250" y2="45" marker-end="url(#loop-arrow)"/>
+
+        <line class="arr" x1="173" y1="56" x2="173" y2="96" marker-end="url(#loop-arrow)"/>
+        <text class="t-arrow" x="182" y="81">はい</text>
+
+        <rect class="box" x="58" y="96" width="230" height="48" rx="8"/>
+        <text class="t" x="173" y="116" text-anchor="middle">VLM が候補を描き</text>
+        <text class="t" x="173" y="135" text-anchor="middle">アフォーダンスで 1&nbsp;本選ぶ</text>
+        <line class="arr" x1="173" y1="144" x2="173" y2="176" marker-end="url(#loop-arrow)"/>
+
+        <rect class="box" x="58" y="176" width="230" height="40" rx="8"/>
+        <text class="t" x="173" y="201" text-anchor="middle">先頭 m 点を追従</text>
+        <line class="arr" x1="173" y1="216" x2="173" y2="248" marker-end="url(#loop-arrow)"/>
+
+        <rect class="box" x="58" y="248" width="230" height="40" rx="8"/>
+        <text class="t" x="173" y="273" text-anchor="middle">m 点に到達／20&nbsp;秒経過</text>
+
+        <polyline class="arr" points="58,268 24,268 24,36 96,36" marker-end="url(#loop-arrow)"/>
+        <text class="t-arrow" x="60" y="29" text-anchor="middle">次の計画へ</text>
+      </svg>
+    </div>
+    <figcaption><span class="fig-num">図 4</span>実行時のループ。ゴールが視野の外にあると画像座標を描けないので、先に回転して視野に入れる。</figcaption>
+  </figure>
+  <p>5&nbsp;点のうち先頭の m 点だけを実行して、計画し直す（receding horizon）。m は短いコースで 3、長いコースで 4。m 点に着くか、20&nbsp;秒たったら次の計画に移る。</p>
+
+  <h3>計算機とセンサ</h3>
+  <div class="table-wrap">
+    <table>
+      <tbody>
+        <tr><th scope="row" class="nowrap">VLM の推論</th><td>外付けノート PC の RTX 3080 Laptop GPU。電源につないで 1&nbsp;Hz、バッテリー駆動で約 0.5&nbsp;Hz</td></tr>
+        <tr><th scope="row" class="nowrap">アフォーダンス</th><td>ロボットに載せた Jetson AGX Orin で実行</td></tr>
+        <tr><th scope="row" class="nowrap">通信</th><td>Spot とは有線 LAN。Hound とはノート PC の 5&nbsp;GHz Wi-Fi（2.4&nbsp;GHz より容量と遅延は良いが、屋外では不安定）</td></tr>
+        <tr><th scope="row" class="nowrap">標高マップ</th><td>Ouster OS-1&nbsp;の LiDAR と Spot の深度カメラから 16&nbsp;m 四方のマップを作り、局所グリッドを切り出して入力する</td></tr>
+        <tr><th scope="row" class="nowrap">カメラ</th><td>Spot は ZED 2i、Hound は RealSense D455</td></tr>
+        <tr><th scope="row" class="nowrap">VLM の温度</th><td>走行実験 0.1、障害物の実験 1.0、機体間の実験 0.3。ビーム数 1、top-k と top-p は使わない</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <aside class="memo">
+    <p class="memo-title">解説メモ</p>
+    <p>温度 0.1&nbsp;だと K 本の候補はほぼ同じ経路になりやすく、選び直しで選べる幅は狭いはずだ。選び直しの効果を見せた実験では温度を 0.3〜1.0&nbsp;に上げて候補をばらつかせている。温度 0.1&nbsp;で走った 6&nbsp;コースの比較で、選び直しがどの程度効いていたかは本文から読み取れない。</p>
+  </aside>
+</section>
+
+<section id="experiments">
+  <h2>実験</h2>
+  <p>実機で次の 5&nbsp;つを確かめている。</p>
+  <ol>
+    <li>既存手法と比べて、いろいろな環境で走れるか</li>
+    <li>同じ VLM で、性質の違う機体を動かせるか</li>
+    <li>言語の好みで経路を変えられるか</li>
+    <li>機体の違うデータを混ぜて学習する意味はあるか</li>
+    <li>機体が 1&nbsp;つでも、選び直しは役に立つか</li>
+  </ol>
+  <p>機体は、純正の歩行制御で動く脚ロボットの Spot と、高速オフロード走行の研究用に作られた小型の車輪ロボット Hound。比較手法は次の 4&nbsp;つ。</p>
+  <ul>
+    <li><strong>幾何スタック：</strong>Spot 内蔵の視覚オドメトリ、多モーダル標高マッピングのコストマップ、ARA* による大域計画、pure pursuit、Spot の RL-MPC 歩行制御を組み合わせた、よく調整された構成</li>
+    <li><strong>ViPlanner：</strong>深度と意味情報を使う学習型の局所プランナー</li>
+    <li><strong>NoMaD：</strong>ゴール画像で動くナビゲーション基盤モデル。拡散ポリシーで探索もできる</li>
+    <li><strong>NaVILA：</strong>行動を文で出すナビゲーション VLA</li>
+  </ul>
+
+  <h3>① 6&nbsp;コースでの比較</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th scope="col">コース</th><th scope="col" class="num">距離</th><th scope="col">試すこと</th></tr></thead>
+      <tbody>
+        <tr><th scope="row">Hallway</th><td class="num">約 20&nbsp;m</td><td>狭い廊下と急な曲がり角</td></tr>
+        <tr><th scope="row">Atrium</th><td class="num">約 20&nbsp;m</td><td>薄暗く、物が多い開けた空間</td></tr>
+        <tr><th scope="row">Lab</th><td class="num">約 5&nbsp;m</td><td>大きく不規則な障害物の裏にあるゴール</td></tr>
+        <tr><th scope="row">Campus</th><td class="num">約 40&nbsp;m</td><td>長距離。途中に 7&nbsp;段の階段がある</td></tr>
+        <tr><th scope="row">Forest</th><td class="num">約 20&nbsp;m</td><td>階段、根や草に覆われた地面、荒れたコンクリート、張り出した枝</td></tr>
+        <tr><th scope="row">Down Ramp</th><td class="num">約 15&nbsp;m</td><td>スタートより低い場所へ。足を取られるツタを避ける</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <figure>
+    <div class="fig">
+      <div class="bars" role="img" aria-label="6 コースの平均成功率。VAMOS 90%、ViPlanner 67%、幾何スタック 53%、NoMaD 27%、NaVILA 10%。">
+        <div class="bar-row is-focus" title="VAMOS：平均成功率 90%"><span class="bar-label">VAMOS</span><span class="bar-track" style="--v: 90"><span class="bar"></span><span class="bar-val">90%</span></span></div>
+        <div class="bar-row" title="ViPlanner：平均成功率 67%"><span class="bar-label">ViPlanner</span><span class="bar-track" style="--v: 67"><span class="bar"></span><span class="bar-val">67%</span></span></div>
+        <div class="bar-row" title="幾何スタック：平均成功率 53%"><span class="bar-label">幾何スタック</span><span class="bar-track" style="--v: 53"><span class="bar"></span><span class="bar-val">53%</span></span></div>
+        <div class="bar-row" title="NoMaD：平均成功率 27%"><span class="bar-label">NoMaD</span><span class="bar-track" style="--v: 27"><span class="bar"></span><span class="bar-val">27%</span></span></div>
+        <div class="bar-row" title="NaVILA：平均成功率 10%"><span class="bar-label">NaVILA</span><span class="bar-track" style="--v: 10"><span class="bar"></span><span class="bar-val">10%</span></span></div>
+      </div>
+    </div>
+    <figcaption><span class="fig-num">図 5</span>6&nbsp;コースの平均成功率（各コース 5&nbsp;回）。論文の表 I から作成。</figcaption>
+  </figure>
+
+  <figure>
+    <div class="fig">
+      <div class="table-wrap" style="margin:0">
+        <table class="heat">
+          <thead>
+            <tr><th scope="col">コース</th><th scope="col">幾何<br>スタック</th><th scope="col">Vi<br>Planner</th><th scope="col">NoMaD</th><th scope="col">NaVILA</th><th scope="col">VAMOS</th></tr>
+          </thead>
+          <tbody>
+            <tr><th scope="row">Hallway</th><td class="h100" title="Hallway／幾何スタック：100%">100</td><td class="h100" title="Hallway／ViPlanner：100%">100</td><td class="h60" title="Hallway／NoMaD：60%">60</td><td class="h20" title="Hallway／NaVILA：20%">20</td><td class="h100" title="Hallway／VAMOS：100%">100</td></tr>
+            <tr><th scope="row">Atrium</th><td class="h100" title="Atrium／幾何スタック：100%">100</td><td class="h100" title="Atrium／ViPlanner：100%">100</td><td class="h0" title="Atrium／NoMaD：0%">0</td><td class="h0" title="Atrium／NaVILA：0%">0</td><td class="h80" title="Atrium／VAMOS：80%">80</td></tr>
+            <tr><th scope="row">Lab</th><td class="h100" title="Lab／幾何スタック：100%">100</td><td class="h0" title="Lab／ViPlanner：0%">0</td><td class="h40" title="Lab／NoMaD：40%">40</td><td class="h40" title="Lab／NaVILA：40%">40</td><td class="h100" title="Lab／VAMOS：100%">100</td></tr>
+            <tr><th scope="row">Campus</th><td class="h0" title="Campus／幾何スタック：0%">0</td><td class="h100" title="Campus／ViPlanner：100%">100</td><td class="h0" title="Campus／NoMaD：0%">0</td><td class="h0" title="Campus／NaVILA：0%">0</td><td class="h80" title="Campus／VAMOS：80%">80</td></tr>
+            <tr><th scope="row">Forest</th><td class="h0" title="Forest／幾何スタック：0%">0</td><td class="h100" title="Forest／ViPlanner：100%">100</td><td class="h0" title="Forest／NoMaD：0%">0</td><td class="h0" title="Forest／NaVILA：0%">0</td><td class="h100" title="Forest／VAMOS：100%">100</td></tr>
+            <tr><th scope="row">Down Ramp</th><td class="h20" title="Down Ramp／幾何スタック：20%">20</td><td class="h0" title="Down Ramp／ViPlanner：0%">0</td><td class="h60" title="Down Ramp／NoMaD：60%">60</td><td class="h0" title="Down Ramp／NaVILA：0%">0</td><td class="h80" title="Down Ramp／VAMOS：80%">80</td></tr>
+            <tr class="avg"><th scope="row">平均</th><td>53</td><td>67</td><td>27</td><td>10</td><td>90</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="heat-legend" aria-hidden="true">
+        <span><i style="background:transparent"></i>0</span>
+        <span><i style="background:var(--h20)"></i>20</span>
+        <span><i style="background:var(--h40)"></i>40</span>
+        <span><i style="background:var(--h60)"></i>60</span>
+        <span><i style="background:var(--h80)"></i>80</span>
+        <span><i style="background:var(--h100)"></i>100</span>
+      </div>
+    </div>
+    <figcaption><span class="fig-num">図 6</span>コースごとの成功率（%、各 5&nbsp;回）。青が強いほど成功率が高い。論文の表 I から作成。</figcaption>
+  </figure>
+
+  <ul>
+    <li>屋内の Hallway と Atrium は標高マップがきれいに取れるので、幾何スタックと ViPlanner も 100% だった。VAMOS もほぼ同等。</li>
+    <li>NoMaD と NaVILA は、屋内でも学習時と違う環境に弱く、まっすぐ進むだけになったり、壁に当たって跳ね返ったりした。開けた屋外でも直進しがちだった。</li>
+    <li>幾何スタックは屋外で、知覚の誤りがそのまま計画の失敗につながり、0〜20% に落ちた。</li>
+    <li>ViPlanner は Campus と Forest で 100% だったが、大きな障害物を先読みして回り込む必要がある Lab と Down Ramp では 0% だった。</li>
+    <li>全コースで 80% 以上を出したのは VAMOS だけ。成功した試行で人が介入した回数も、平均で 0〜0.4&nbsp;回だった。</li>
+  </ul>
+  <aside class="memo">
+    <p class="memo-title">解説メモ</p>
+    <ul>
+      <li>本文は Lab で VAMOS がすべての比較手法を上回ったと書いているが、表 I では幾何スタックも 100% で同率である。</li>
+      <li>各コース 5&nbsp;回の試行なので、80% と 100% の差は 1&nbsp;回分にすぎない。平均の差（90% 対 67%）は大きいが、コース単位の差はばらつきも大きい。</li>
+      <li>座標で与えたゴールを NoMaD と NaVILA にどう渡したかは、本文に記述が見当たらない。本来はゴール画像や言語で動くモデルなので、比較条件として気に留めておきたい。</li>
+    </ul>
+  </aside>
+
+  <h3>② 同じ VLM で機体をまたぐ</h3>
+  <p>階段とスロープが横に並び、どちらからでも上の階に行ける場所で、上の階にあるゴールを目指す。VLM は共通で、アフォーダンスモデル（と下位制御）だけを Spot 用と Hound 用で差し替える。</p>
+  <figure>
+    <div class="fig">
+      <div class="split-legend" aria-hidden="true">
+        <span><i class="s-stairs"></i>階段を選んだ回</span>
+        <span><i class="s-ramp"></i>スロープを選んだ回</span>
+      </div>
+      <div class="table-wrap" style="margin:0">
+        <table class="choice">
+          <thead>
+            <tr><th scope="col">機体</th><th scope="col">選び直し</th><th scope="col">階段／スロープ（回）</th><th scope="col" class="num">成功率</th></tr>
+          </thead>
+          <tbody>
+            <tr><th scope="row">Spot</th><td>なし</td><td>4&nbsp;／ 6<span class="split" aria-hidden="true"><span class="s-stairs" style="--n:4"></span><span class="s-ramp" style="--n:6"></span></span></td><td class="num">100%</td></tr>
+            <tr><th scope="row">Spot</th><td>あり</td><td>8&nbsp;／ 2<span class="split" aria-hidden="true"><span class="s-stairs" style="--n:8"></span><span class="s-ramp" style="--n:2"></span></span></td><td class="num">100%</td></tr>
+            <tr><th scope="row">Hound</th><td>なし</td><td>4&nbsp;／ 6<span class="split" aria-hidden="true"><span class="s-stairs" style="--n:4"></span><span class="s-ramp" style="--n:6"></span></span></td><td class="num">60%</td></tr>
+            <tr><th scope="row">Hound</th><td>あり</td><td>1&nbsp;／ 9<span class="split" aria-hidden="true"><span class="s-stairs" style="--n:1"></span><span class="s-ramp" style="--n:9"></span></span></td><td class="num"><strong>90%</strong></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <figcaption><span class="fig-num">図 7</span>階段とスロープが並ぶ場所での経路選択と成功率（各 10&nbsp;回）。Hound が階段を選んだ回は失敗になる。論文の表 II から作成。</figcaption>
+  </figure>
+  <p>選び直しがないと、両機体とも 10&nbsp;回中 4&nbsp;回階段を選んだ。VLM はどの機体で走っているかを知らないので、上れない機体でも階段を選ぶ回が出る。Hound は階段を上れないので、その 4&nbsp;回がそのまま失敗になる。選び直しを入れると Hound が階段を選んだのは 1&nbsp;回だけになり、成功率は 60% から 90% に上がった。Spot はどちらでも上れるので 100% のままで、階段を選ぶ回が増えた。</p>
+  <p>同じ課題で、最も強い比較手法だった ViPlanner は Spot で 100%、Hound で 0% だった。</p>
+  <aside class="memo">
+    <p class="memo-title">解説メモ</p>
+    <p>この実験の前に、各機体でその場所の画像を 50&nbsp;枚撮り、階段経由とスロープ経由の経路を手描きでラベルして VLM を追加学習している（1&nbsp;本からノイズ入りの経路を 10&nbsp;本作り、合計 2K サンプル）。VLM が両方のルートを候補に出すようにするための準備で、「どんな場所でも両方の候補が自然に出る」ことまでは示していない。</p>
+  </aside>
+
+  <h3>③ 言語で経路を変える</h3>
+  <p>指示文に好みを足すと、左寄りか右寄りか、階段かスロープか芝生の植え込みか、といった指定に沿って経路が変わる例が示されている。定量評価は階段とスロープの 1&nbsp;場面だけで、指定どおりの経路かを ChatGPT 5&nbsp;に判定させたところ、スロープ指定と階段指定のどちらも 20&nbsp;回中 20&nbsp;回で一致した。</p>
+  <aside class="memo">
+    <p class="memo-title">解説メモ</p>
+    <p>評価は 1&nbsp;枚の画像と VLM による判定に限られる。実際に走らせたとき、どこまで指定に従うかは示されていない。</p>
+  </aside>
+
+  <h3>④ 機体の違うデータを混ぜる意味</h3>
+  <p>全データで学習した VLM と、データセットごとに単独で学習した VLM を、それぞれの検証データで比べている（オフライン評価）。平均 L2&nbsp;誤差のほか、最大 L2&nbsp;誤差、Fréchet 距離、DTW など 7&nbsp;つの指標で、全データ版の誤差が小さい傾向だった。差は小さいが、対応のある t 検定で多くの指標が有意だった。機体の違うデータでも、画像上の経路という形式にそろえれば互いの役に立つ（正の転移）、という主張の根拠になっている。</p>
+
+  <h3>⑤ 機体が 1&nbsp;つでも選び直しは効くか</h3>
+  <p>学習時と違う場面で VLM の温度を 1.0&nbsp;に上げて候補をばらつかせると、障害物を突っ切る候補も混ざる。それをそのまま実行すると成功率は 20%、アフォーダンスで選び直すと 60% だった（各 10&nbsp;回）。アブストラクトにある「成功率約 3&nbsp;倍」は、この結果のことである。</p>
+  <p>アフォーダンスの値を地図に描くと、Spot は階段を上れるが Hound は上れない、高い壁はどちらも通れない、というように、地形の形と機体の能力の関係がそのまま現れている。</p>
+</section>
+
+<section id="limitations">
+  <h2>失敗例と限界</h2>
+  <h3>論文が挙げている失敗</h3>
+  <ul>
+    <li><strong>動く障害物に弱い。</strong>学習データでは歩行者がたいてい道を空けてくれるので、近くの人の動きに合わせてよける例がほとんどない。</li>
+    <li><strong>曲がり角で行き過ぎる、または手前で曲がる。</strong>学習時に軌跡を等間隔に間引くため、角の大事な点が落ちることがある。角を残す間引き方（Ramer–Douglas–Peucker 法）も試したが、かえって悪くなった。</li>
+  </ul>
+  <p>失敗ではないが、正解の軌跡が遠回りでも、VLM はゴールへまっすぐ向かう経路を出しやすい傾向も報告されている。</p>
+
+  <aside class="memo">
+    <p class="memo-title">解説メモ：読んでいて気になった点</p>
+    <ul>
+      <li><strong>自己位置が前提。</strong>ゴールは GPS や世界座標の中間点を画像に投影して与える。少なくともオドメトリや GPS で、ゴールとの相対位置が分かっている必要がある。</li>
+      <li><strong>標高マップが前提。</strong>下位の入力は地形の形だけなので、LiDAR か深度センサがいる。濡れた床やガラス、柔らかい地面のように、形に出ない走りにくさは扱えない。</li>
+      <li><strong>VLM はロボットの外で動いている。</strong>ノート PC の GPU で 0.5〜1&nbsp;Hz。ロボット搭載の計算機での速度は示されていない。</li>
+      <li><strong>記憶を持たない。</strong>入力は現在の画像 1&nbsp;枚なので、何かを待ってから動く、手順を順に踏む、といったタスクは対象外。</li>
+      <li><strong>試行数が少ない。</strong>実機評価は 1&nbsp;条件あたり 5〜10&nbsp;回。</li>
+    </ul>
+  </aside>
+</section>
+
+<section id="omnivla">
+  <h2>OmniVLA との比較</h2>
+  <p>同じ時期のナビゲーション VLA である OmniVLA（Hirose ら、arXiv:2509.19480、2025&nbsp;年 9&nbsp;月 23&nbsp;日公開）とは、論文中で比較されていない。公開日の差は 1&nbsp;か月である。2&nbsp;つの論文の記述をもとに並べると、次のようになる。</p>
+  <div class="table-wrap">
+    <table class="stack cmp">
+      <thead>
+        <tr><th scope="col">項目</th><th scope="col">VAMOS</th><th scope="col">OmniVLA</th></tr>
+      </thead>
+      <tbody>
+        <tr><th scope="row">構成</th><td data-label="VAMOS">階層型。VLM の経路候補を、機体ごとのアフォーダンスで選び、既存の下位制御で実行</td><td data-label="OmniVLA">エンドツーエンド。1&nbsp;つのモデルが行動を直接出す</td></tr>
+        <tr><th scope="row">モデル</th><td data-label="VAMOS">PaliGemma 2 3B ＋ 小さな MLP</td><td data-label="OmniVLA">OpenVLA ベースの約 7.5B。軽量版 OmniVLA-edge は約 50M</td></tr>
+        <tr><th scope="row">ゴールの与え方</th><td data-label="VAMOS">画像座標（テキスト）＋任意の好みの文</td><td data-label="OmniVLA">2D 姿勢、ゴール画像、言語、およびその組み合わせ</td></tr>
+        <tr><th scope="row">観測</th><td data-label="VAMOS">現在の画像 1&nbsp;枚（＋アフォーダンス用の標高マップ）</td><td data-label="OmniVLA">現在の画像 1&nbsp;枚（edge 版は直近 5&nbsp;枚）</td></tr>
+        <tr><th scope="row">出力</th><td data-label="VAMOS">画像上の経路候補（各 5&nbsp;点）。選んだ経路を下位制御に渡す</td><td data-label="OmniVLA">8&nbsp;ステップの行動列（3&nbsp;Hz、2.4&nbsp;秒分）</td></tr>
+        <tr><th scope="row">学習データ</th><td data-label="VAMOS">実走行 29.8&nbsp;時間（4&nbsp;データセット、3&nbsp;機体）＋シミュレーション</td><td data-label="OmniVLA">約 9,500&nbsp;時間（10&nbsp;機体）</td></tr>
+        <tr><th scope="row">機体の違い</th><td data-label="VAMOS">アフォーダンスモデルを差し替える</td><td data-label="OmniVLA">多機体のデータから暗黙に学ぶ</td></tr>
+        <tr><th scope="row">センサ</th><td data-label="VAMOS">カメラ＋ LiDAR または深度センサ</td><td data-label="OmniVLA">カメラのみ</td></tr>
+        <tr><th scope="row">言語の役割</th><td data-label="VAMOS">経路の好みを調整する</td><td data-label="OmniVLA">ゴールそのもの、または行き方の指示</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <aside class="memo">
+    <p class="memo-title">解説メモ</p>
+    <p>重点が違う。VAMOS は「座標で与えたゴールまで、機体に合った経路を選ぶ」ことに、OmniVLA は「カメラだけで、いろいろな形式のゴール指定に反応する」ことに重点がある。VAMOS が GNM、ViNT、NoMaD の系統に向けた指摘（意味と能力を 1&nbsp;つのモデルに背負わせる、ゴール画像を集める事前走行が要る）は、OmniVLA をゴール画像で使う場合にもそのまま当てはまる。逆に VAMOS は、LiDAR か深度センサと、ゴールとの相対位置が分かることを前提にしている。</p>
+  </aside>
+</section>
+
+<section id="reproduce">
+  <h2>再現のためのメモ</h2>
+  <p>VLM の学習設定は付録にまとまっている。学習は Hugging Face の TRL と Accelerate の上に組まれている。</p>
+  <div class="table-wrap">
+    <table>
+      <tbody>
+        <tr><th scope="row" class="nowrap">ベースモデル</th><td><code>google/paligemma2-3b-pt-224</code></td></tr>
+        <tr><th scope="row" class="nowrap">LoRA</th><td>r=16、α=16、dropout 0.05。対象は <code>q_proj</code>、<code>k_proj</code>、<code>v_proj</code>、<code>o_proj</code>、<code>gate_proj</code>、<code>up_proj</code>、<code>down_proj</code></td></tr>
+        <tr><th scope="row" class="nowrap">最適化</th><td>AdamW（学習率 1e-4、β = (0.9, 0.999)、ε = 1e-8、weight decay 1e-5）、勾配ノルムの上限 1.0</td></tr>
+        <tr><th scope="row" class="nowrap">スケジュール</th><td>cosine、warmup 比 0.1、1&nbsp;エポック（複数エポックはすぐ過学習する）</td></tr>
+        <tr><th scope="row" class="nowrap">バッチ</th><td>GPU あたり 8&nbsp;× 8 GPU ＝ 実効 64</td></tr>
+        <tr><th scope="row" class="nowrap">精度と系列長</th><td>bf16、最大 2048&nbsp;トークン、packing あり</td></tr>
+        <tr><th scope="row" class="nowrap">計算資源</th><td>L40&nbsp;× 8&nbsp;のノードで約 5&nbsp;時間。RTX 4090 1&nbsp;枚でも、GPU あたりバッチ 2&nbsp;なら LoRA で学習できる</td></tr>
+        <tr><th scope="row" class="nowrap">推論</th><td>走行実験は温度 0.1、ビーム 1、top-k と top-p なし。予測 5&nbsp;点のうち先頭 3〜4&nbsp;点を実行</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>プロジェクトページから、<a href="https://github.com/vamos-vla/vamos">コード</a>、Hugging Face のコレクション、<a href="https://mateoguaman-vamos.hf.space">Gradio のデモ</a>にリンクされている。手元の画像で VLM の経路予測の質を見るなら、まずデモに投げてみるのが早い。</p>
+</section>
+
+<section id="glossary">
+  <h2>用語集</h2>
+  <dl class="glossary">
+    <dt>VLA（Vision-Language-Action モデル）</dt>
+    <dd>画像と言語を入力に、ロボットの行動を出力するモデル。VAMOS は上位の VLM と下位のアフォーダンスを合わせて VLA と呼んでいる。</dd>
+    <dt>VLM（Vision-Language Model）</dt>
+    <dd>画像と言語を扱う言語モデル。VAMOS では、経路（画像上の点列）をテキストとして出力させる。</dd>
+    <dt>アフォーダンス</dt>
+    <dd>この論文では、ある機体とその下位ポリシーが、ある場所をある向きで通れるかの度合い。0〜1&nbsp;の確率で表す。</dd>
+    <dt>エンボディメント（embodiment）</dt>
+    <dd>ロボットの身体。脚か車輪か、大きさ、越えられる段差など。異なる身体で同じモデルを使うことをクロスエンボディメントという。</dd>
+    <dt>標高マップ</dt>
+    <dd>地面の高さを格子状に並べた地図。LiDAR や深度センサの点群から作る。</dd>
+    <dt>位置トークン</dt>
+    <dd>PaliGemma が画像の座標を表すのに使う 1024&nbsp;個の特殊トークン（<code>&lt;loc0000&gt;</code>〜<code>&lt;loc1023&gt;</code>）。</dd>
+    <dt>ステアラビリティ（steerability）</dt>
+    <dd>実行時に、言語などで振る舞いを調整できること。</dd>
+    <dt>Receding horizon</dt>
+    <dd>先まで計画し、最初の一部だけ実行して計画し直すことを繰り返す方式。</dd>
+    <dt>LoRA</dt>
+    <dd>重みに低ランクの差分だけを足して学習する、軽量な微調整の方法。</dd>
+    <dt>Wave Function Collapse</dt>
+    <dd>隣り合うタイルの制約を満たすように配置を決めていく、手続き的な生成アルゴリズム。</dd>
+    <dt>Pure pursuit</dt>
+    <dd>経路上の少し先の点を目指して曲率を決める、単純な経路追従制御。</dd>
+    <dt>ARA*</dt>
+    <dd>まず粗い解を素早く出し、時間に応じて解を改善していく A* の変種。</dd>
+    <dt>Fréchet 距離と DTW</dt>
+    <dd>2&nbsp;本の曲線の近さを測る指標。Fréchet 距離は最大のずれ、DTW は全体の平均的なずれを反映しやすい。</dd>
+  </dl>
+</section>
+
+<section id="refs">
+  <h2>参考文献</h2>
+  <ul class="refs">
+    <li>M. Guaman Castro et al. “VAMOS: A Hierarchical Vision-Language-Action Model for Capability-Modulated and Steerable Navigation.” <a href="https://arxiv.org/abs/2510.20818">arXiv:2510.20818</a>, 2025. <a href="https://vamos-vla.github.io/">プロジェクトページ</a></li>
+    <li>N. Hirose et al. “OmniVLA: An Omni-Modal Vision-Language-Action Model for Robot Navigation.” <a href="https://arxiv.org/abs/2509.19480">arXiv:2509.19480</a>, 2025.</li>
+    <li>A. Steiner et al. “PaliGemma 2: A Family of Versatile VLMs for Transfer.” <a href="https://arxiv.org/abs/2412.03555">arXiv:2412.03555</a>, 2024.</li>
+    <li>A.-C. Cheng et al. “NaVILA: Legged Robot Vision-Language-Action Model for Navigation.” RSS 2025. <a href="https://arxiv.org/abs/2412.04453">arXiv:2412.04453</a></li>
+    <li>A. Sridhar et al. “NoMaD: Goal Masked Diffusion Policies for Navigation and Exploration.” ICRA 2024.</li>
+    <li>D. Shah et al. “ViNT: A Foundation Model for Visual Navigation.” CoRL 2023. <a href="https://arxiv.org/abs/2306.14846">arXiv:2306.14846</a></li>
+    <li>D. Shah et al. “GNM: A General Navigation Model to Drive Any Robot.” ICRA 2023. <a href="https://arxiv.org/abs/2210.03370">arXiv:2210.03370</a></li>
+    <li>P. Roth et al. “ViPlanner: Visual Semantic Imperative Learning for Local Navigation.” ICRA 2024.</li>
+    <li>Y. Li et al. “HAMSTER: Hierarchical Action Models for Open-World Robot Manipulation.” <a href="https://arxiv.org/abs/2502.05485">arXiv:2502.05485</a>, 2025.</li>
+    <li>W. Yuan et al. “RoboPoint: A Vision-Language Model for Spatial Affordance Prediction for Robotics.” <a href="https://arxiv.org/abs/2406.10721">arXiv:2406.10721</a>, 2024.</li>
+  </ul>
+</section>
+
+<footer class="foot">
+  <p>この資料は、論文本文（arXiv v1）を読んで要点を日本語でまとめ直したもの。図はすべてこの資料のために描いた模式図で、論文の図は転載していない。数値は論文の表と本文から取り、説明用に作った値にはその旨を書いた。2026&nbsp;年 11&nbsp;月 6&nbsp;日作成。</p>
+</footer>
+
+</main>
+</div>
+
+<script>
+(function () {
+  var hero = document.querySelector('[data-hero]');
+  if (hero) {
+    var states = {
+      spot: {
+        chosen: 'stairs',
+        scores: { stairs: '0.91', ramp: '0.88', straight: '0.04' },
+        note: 'Spot は階段もスロープも上れるので、どちらの候補も高得点になる。段差に突っ込む直進だけが落とされ、最も高い階段経由が選ばれる。'
+      },
+      hound: {
+        chosen: 'ramp',
+        scores: { stairs: '0.05', ramp: '0.86', straight: '0.03' },
+        note: 'Hound は階段を上れないので、階段経由の候補は段の途中で 0 近くまで下がる。直進も落とされ、スロープ経由が選ばれる。'
+      }
+    };
+    var buttons = hero.querySelectorAll('button[data-robot]');
+    var note = hero.querySelector('[data-note]');
+    var setRobot = function (robot) {
+      var s = states[robot];
+      buttons.forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.robot === robot)); });
+      hero.querySelectorAll('.cand, .badge').forEach(function (el) {
+        el.classList.toggle('is-chosen', el.dataset.path === s.chosen);
+      });
+      hero.querySelectorAll('[data-score]').forEach(function (el) {
+        el.textContent = s.scores[el.dataset.score];
+      });
+      hero.querySelectorAll('[data-col]').forEach(function (el) {
+        el.classList.toggle('is-active', el.dataset.col === robot);
+      });
+      var chosenGroup = hero.querySelector('.cand[data-path="' + s.chosen + '"]');
+      if (chosenGroup) { chosenGroup.parentNode.insertBefore(chosenGroup, hero.querySelector('.origin')); }
+      note.textContent = s.note;
+    };
+    buttons.forEach(function (b) {
+      b.addEventListener('click', function () { setRobot(b.dataset.robot); });
+    });
+  }
+
+  var railLinks = Array.prototype.slice.call(document.querySelectorAll('.toc-rail a'));
+  if ('IntersectionObserver' in window && railLinks.length) {
+    var byId = {};
+    railLinks.forEach(function (a) { byId[a.getAttribute('href').slice(1)] = a; });
+    var observer = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (!entry.isIntersecting) { return; }
+        railLinks.forEach(function (a) { a.removeAttribute('aria-current'); });
+        var link = byId[entry.target.id];
+        if (link) { link.setAttribute('aria-current', 'true'); }
+      });
+    }, { rootMargin: '-10% 0px -80% 0px' });
+    document.querySelectorAll('main section[id]').forEach(function (sec) { observer.observe(sec); });
+  }
+
+  document.querySelectorAll('.toc-mobile a').forEach(function (a) {
+    a.addEventListener('click', function () {
+      var details = a.closest('details');
+      if (details) { details.open = false; }
+    });
+  });
+})();
+</script>
+</body>
+</html>
